@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell($projectPath = \"C:\\\\Users\\\\denni\\\\OneDrive\\\\Documentos\\\\Claude\\\\Projects\\\\fintech-pos-api\"; $items = Get-ChildItem $projectPath -Force; Write-Host \"Total items: $\\($items.Count\\)\"; $items | Select-Object Name, Mode | Format-Table)",
+      "PowerShell($specsPath = \"C:\\\\Users\\\\denni\\\\OneDrive\\\\Documentos\\\\Claude\\\\Projects\\\\fintech-pos-api\\\\.sdd\\\\specs\"; if \\(Test-Path $specsPath\\) { $items = Get-ChildItem $specsPath -Directory -Force; Write-Host \"Existing specs: $\\($items.Count\\)\"; $items | ForEach-Object { Write-Host \" - $\\($_.Name\\)\" } } else { Write-Host \"specs folder not found or empty\" })",
+      "PowerShell(\\(Get-Item \"C:\\\\Users\\\\denni\\\\fintechedv-aisdd\" -Force\\).PSIsContainer)",
+      "Skill(sdd:spec-requirements)",
+      "Skill(sdd:spec-requirements:*)",
+      "WebSearch",
+      "Skill(sdd:spec-tasks)",
+      "Skill(sdd:spec-tasks:*)"
+    ]
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "name": "fintech-pos-api",
+  "version": "0.1.0",
+  "private": true,
+  "description": "API de Point-of-Sale para fintech — desenvolvida com Spec-Driven Development (ai-sdd)",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "sdd": "npx ai-sdd",
+    "sdd:init": "npx ai-sdd /sdd:spec-init",
+    "sdd:requirements": "npx ai-sdd /sdd:spec-requirements",
+    "sdd:design": "npx ai-sdd /sdd:spec-design",
+    "sdd:tasks": "npx ai-sdd /sdd:spec-tasks",
+    "sdd:impl": "npx ai-sdd /sdd:spec-impl"
+  },
+  "keywords": [
+    "fintech",
+    "pos",
+    "api",
+    "spec-driven-development",
+    "ai-sdd"
+  ],
+  "author": "Dennis Rojas Pereira <dennisrojaspereira@gmail.com>",
+  "license": "UNLICENSED",
+  "main": "index.js"
+}
