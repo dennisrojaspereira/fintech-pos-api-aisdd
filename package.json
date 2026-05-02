@@ -7,7 +7,26 @@
   "engines": {
     "node": ">=20"
   },
+  "main": "dist/index.js",
   "scripts": {
+    "build": "npm run prisma:generate && tsc -p tsconfig.build.json",
+    "dev": "tsx watch src/index.ts",
+    "start": "node --enable-source-maps dist/index.js",
+    "typecheck": "tsc --noEmit",
+    "typecheck:full": "npm run prisma:generate && tsc --noEmit",
+    "lint": "echo \"(eslint a configurar em fase posterior)\"",
+    "test": "vitest run",
+    "test:unit": "vitest run --project unit",
+    "test:integration": "vitest run --project integration",
+    "test:watch": "vitest",
+    "test:load": "tsx tests/load/authorize-load.ts",
+    "test:load:reconciliation": "tsx tests/load/reconciliation-load.ts",
+    "prisma": "prisma",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:deploy": "prisma migrate deploy",
+    "infra:up": "docker compose up -d",
+    "infra:down": "docker compose down",
     "sdd": "npx ai-sdd",
     "sdd:init": "npx ai-sdd /sdd:spec-init",
     "sdd:requirements": "npx ai-sdd /sdd:spec-requirements",
@@ -24,5 +43,33 @@
   ],
   "author": "Dennis Rojas Pereira <dennisrojaspereira@gmail.com>",
   "license": "UNLICENSED",
-  "main": "index.js"
+  "dependencies": {
+    "@fastify/swagger": "^9.4.0",
+    "@fastify/swagger-ui": "^5.2.0",
+    "@opentelemetry/api": "^1.9.0",
+    "@opentelemetry/auto-instrumentations-node": "^0.52.0",
+    "@opentelemetry/sdk-node": "^0.55.0",
+    "@prisma/client": "^5.22.0",
+    "bullmq": "^5.34.0",
+    "fastify": "^5.2.0",
+    "ioredis": "^5.4.1",
+    "jsonwebtoken": "^9.0.2",
+    "opossum": "^8.4.0",
+    "opossum-prometheus": "^0.4.0",
+    "pino": "^9.5.0",
+    "pino-pretty": "^13.0.0",
+    "redlock": "^5.0.0-beta.2",
+    "undici": "^6.21.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/jsonwebtoken": "^9.0.7",
+    "@types/node": "^20.17.6",
+    "@types/opossum": "^8.1.8",
+    "autocannon": "^7.15.0",
+    "prisma": "^5.22.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.5"
+  }
 }

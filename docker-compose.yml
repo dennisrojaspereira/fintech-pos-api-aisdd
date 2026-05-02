@@ -1,0 +1,35 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: posapi-postgres
+    environment:
+      POSTGRES_USER: posapi
+      POSTGRES_PASSWORD: posapi
+      POSTGRES_DB: posapi
+    ports:
+      - "5432:5432"
+    volumes:
+      - posapi_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U posapi -d posapi"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: posapi-redis
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - posapi_redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  posapi_pgdata:
+  posapi_redisdata:

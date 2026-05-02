@@ -1,0 +1,169 @@
+// fintech-pos-api — Prisma schema
+//
+// Fonte: design.md "Data Models / Logical Data Model".
+// Mantém um modelo `Merchant` mínimo para suportar tenant isolation e
+// configuração de receipt template (req 4.4 / 6.4 / 6.5).
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = []
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ──────────────────────────────────────────────
+// Enums
+// ──────────────────────────────────────────────
+
+enum TransactionStatus {
+  PENDING
+  APPROVED
+  DECLINED
+  VOIDED
+  SETTLED
+}
+
+enum PaymentMethodType {
+  CREDIT_CARD
+  DEBIT_CARD
+  CONTACTLESS_NFC
+}
+
+enum AccountStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+enum SettlementStatus {
+  PENDING_SETTLEMENT
+  SETTLED
+}
+
+enum AuditAction {
+  AUTHORIZE
+  VOID
+  RECONCILIATION_READ
+}
+
+enum AuditOutcome {
+  SUCCESS
+  FAILURE
+}
+
+enum ReconciliationJobStatus {
+  QUEUED
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+// ──────────────────────────────────────────────
+// Merchant — necessário para tenant isolation, status check (req 6.5)
+// e receipt template (req 4.4). Mínimo viável.
+// ──────────────────────────────────────────────
+
+model Merchant {
+  id                String        @id @db.Uuid
+  name              String        @db.VarChar(200)
+  accountStatus     AccountStatus @default(ACTIVE) @map("account_status")
+  receiptTemplateId String?       @map("receipt_template_id") @db.VarChar(100)
+  createdAt         DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  terminals    Terminal[]
+  transactions Transaction[]
+
+  @@map("merchants")
+}
+
+// ──────────────────────────────────────────────
+// Terminal — pertence a um merchant; ownership é validado em 9.1.
+// ──────────────────────────────────────────────
+
+model Terminal {
+  id         String   @id @db.VarChar(100)
+  merchantId String   @map("merchant_id") @db.Uuid
+  label      String?  @db.VarChar(100)
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  merchant Merchant @relation(fields: [merchantId], references: [id], onDelete: Restrict)
+
+  @@index([merchantId])
+  @@map("terminals")
+}
+
+// ──────────────────────────────────────────────
+// Transaction — agregado raiz. version usado para optimistic locking.
+// ──────────────────────────────────────────────
+
+model Transaction {
+  id                       String            @id @default(uuid()) @db.Uuid
+  merchantId               String            @map("merchant_id") @db.Uuid
+  terminalId               String            @map("terminal_id") @db.VarChar(100)
+  amount                   Int
+  currency                 String            @db.VarChar(3)
+  paymentMethodType        PaymentMethodType @map("payment_method_type")
+  maskedPan                String            @map("masked_pan") @db.VarChar(32)
+  status                   TransactionStatus
+  authorizationCode        String?           @map("authorization_code") @db.VarChar(64)
+  acquirerReferenceNumber  String?           @map("acquirer_reference_number") @db.VarChar(64)
+  acquirerDeclineCode      String?           @map("acquirer_decline_code") @db.VarChar(32)
+  voidedBy                 String?           @map("voided_by") @db.VarChar(100)
+  voidedAt                 DateTime?         @map("voided_at") @db.Timestamptz(6)
+  lastAcquirerCheckAt      DateTime?         @map("last_acquirer_check_at") @db.Timestamptz(6)
+  settlementStatus         SettlementStatus  @default(PENDING_SETTLEMENT) @map("settlement_status")
+  createdAt                DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
+  version                  Int               @default(0)
+
+  merchant Merchant @relation(fields: [merchantId], references: [id], onDelete: Restrict)
+
+  // Índices da Task 2.2 (criados via migrations + raw SQL)
+  @@index([merchantId, createdAt(sort: Desc)], map: "idx_tx_merchant_created_desc")
+  @@index([terminalId, status, createdAt], map: "idx_tx_terminal_status_created")
+  // Partial index em PENDING é definido em SQL (migration manual).
+  @@map("transactions")
+}
+
+// ──────────────────────────────────────────────
+// AuditEntry — append-only. DELETE/UPDATE revogados em SQL (Task 2.2).
+// ──────────────────────────────────────────────
+
+model AuditEntry {
+  id         String       @id @default(uuid()) @db.Uuid
+  actorId    String       @map("actor_id") @db.VarChar(100)
+  action     AuditAction
+  resourceId String       @map("resource_id") @db.Uuid
+  outcome    AuditOutcome
+  metadata   Json         @default("{}") @db.JsonB
+  timestamp  DateTime     @default(now()) @db.Timestamptz(6)
+
+  @@index([resourceId, timestamp(sort: Desc)], map: "idx_audit_resource_ts_desc")
+  @@map("audit_entries")
+}
+
+// ──────────────────────────────────────────────
+// ReconciliationJob — async export (BullMQ-backed; persistência aqui
+// é o registro de status para polling do terminal).
+// ──────────────────────────────────────────────
+
+model ReconciliationJob {
+  id         String                  @id @default(uuid()) @db.Uuid
+  merchantId String                  @map("merchant_id") @db.Uuid
+  terminalId String?                 @map("terminal_id") @db.VarChar(100)
+  startDate  DateTime                @map("start_date") @db.Date
+  endDate    DateTime                @map("end_date") @db.Date
+  status     ReconciliationJobStatus @default(QUEUED)
+  resultUrl  String?                 @map("result_url") @db.Text
+  queryHash  String                  @map("query_hash") @db.VarChar(64)
+  createdAt  DateTime                @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime                @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([merchantId, createdAt(sort: Desc)], map: "idx_recon_merchant_created_desc")
+  @@index([queryHash, createdAt], map: "idx_recon_dedup_hash")
+  @@map("reconciliation_jobs")
+}
